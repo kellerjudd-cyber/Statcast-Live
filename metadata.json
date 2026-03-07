@@ -1,0 +1,5 @@
+{
+  "name": "Statcast HQ: MLB Real-Time Analytics",
+  "description": "A comprehensive MLB analytics dashboard featuring live Statcast data, real-time strike zones, and detailed pitch-by-pitch metrics.",
+  "requestFramePermissions": []
+}
