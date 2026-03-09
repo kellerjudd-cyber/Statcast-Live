@@ -199,6 +199,46 @@ const PlayerPerformanceCharts: React.FC<PlayerPerformanceChartsProps> = ({ gameD
     })).sort((a, b) => b.count - a.count);
   }, [gameDetail.plays, selectedPitcherId]);
 
+  // 4b. Detailed Pitcher Arsenal Breakdown (All Pitchers)
+  const pitchersPitchTypeData = useMemo(() => {
+    const pitcherStats: Record<number, { 
+      name: string; 
+      team: string;
+      types: Record<string, { count: number; totalVel: number }> 
+    }> = {};
+
+    gameDetail.plays.forEach(play => {
+      if (!pitcherStats[play.pitcher_id]) {
+        pitcherStats[play.pitcher_id] = {
+          name: play.pitcher_name,
+          team: getTeamName(play.pitcher_team_id),
+          types: {}
+        };
+      }
+
+      play.pitches.forEach(pitch => {
+        if (pitch.pitch_type && pitch.velocity !== null) {
+          if (!pitcherStats[play.pitcher_id].types[pitch.pitch_type]) {
+            pitcherStats[play.pitcher_id].types[pitch.pitch_type] = { count: 0, totalVel: 0 };
+          }
+          pitcherStats[play.pitcher_id].types[pitch.pitch_type].count++;
+          pitcherStats[play.pitcher_id].types[pitch.pitch_type].totalVel += pitch.velocity;
+        }
+      });
+    });
+
+    return Object.entries(pitcherStats).map(([id, data]) => ({
+      id: parseInt(id),
+      name: data.name,
+      team: data.team,
+      types: Object.entries(data.types).map(([type, typeData]) => ({
+        type,
+        count: typeData.count,
+        avgVel: (typeData.totalVel / typeData.count).toFixed(1)
+      })).sort((a, b) => b.count - a.count)
+    })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [gameDetail.plays, gameDetail.home_team_id, gameDetail.away_team_id, gameDetail.home_team, gameDetail.away_team]);
+
   // 5. Launch Angle Distribution
   const laDistribution = useMemo(() => {
     const bins = [-90, -10, 10, 25, 40, 60];
@@ -672,6 +712,63 @@ const PlayerPerformanceCharts: React.FC<PlayerPerformanceChartsProps> = ({ gameD
               <p className="mt-4 text-[10px] text-slate-500 text-center italic">
                 Frequency of pitch types thrown and their average velocities.
               </p>
+            </div>
+          </div>
+
+          {/* Detailed Pitcher Arsenal Breakdown */}
+          <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6 overflow-hidden">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-bold text-slate-100 flex items-center gap-2">
+                <Users className="w-4 h-4 text-indigo-400" />
+                Pitcher Arsenal Breakdown
+              </h3>
+              <span className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Full Game Comparison</span>
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-800">
+                    <th className="py-3 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Pitcher</th>
+                    <th className="py-3 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Team</th>
+                    <th className="py-3 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Pitch Type</th>
+                    <th className="py-3 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">Count</th>
+                    <th className="py-3 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">Avg Velocity</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pitchersPitchTypeData.map((pitcher) => (
+                    <React.Fragment key={pitcher.id}>
+                      {pitcher.types.map((type, tIdx) => (
+                        <tr 
+                          key={`${pitcher.id}-${type.type}`} 
+                          className={`border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors ${tIdx === 0 ? 'border-t border-slate-800' : ''}`}
+                        >
+                          <td className="py-3 px-4">
+                            {tIdx === 0 ? (
+                              <span className="text-sm font-bold text-white">{pitcher.name}</span>
+                            ) : null}
+                          </td>
+                          <td className="py-3 px-4">
+                            {tIdx === 0 ? (
+                              <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">{pitcher.team}</span>
+                            ) : null}
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="text-xs text-slate-300 font-medium">{type.type}</span>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <span className="text-xs font-mono font-bold text-indigo-400">{type.count}</span>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <span className="text-xs font-mono font-bold text-emerald-400">{type.avgVel} MPH</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

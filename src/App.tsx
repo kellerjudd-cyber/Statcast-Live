@@ -56,7 +56,10 @@ const PitchIndicator = ({ pitch, index, size = "md", active = false }: { pitch: 
   const sizeClasses = size === "sm" ? "w-6 h-6 text-[9px]" : "w-8 h-8 text-[10px]";
 
   return (
-    <div 
+    <motion.div 
+      initial={{ scale: 0, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ type: "spring", stiffness: 300, damping: 20, delay: index * 0.05 }}
       className={cn(
         "flex-shrink-0 flex items-center justify-center font-black border shadow-sm transition-all hover:scale-110",
         shapeClass,
@@ -69,7 +72,7 @@ const PitchIndicator = ({ pitch, index, size = "md", active = false }: { pitch: 
       <span className={cn(isBreaking ? "-rotate-45" : "")}>
         {index}
       </span>
-    </div>
+    </motion.div>
   );
 };
 
@@ -846,6 +849,25 @@ export default function App() {
                                       {lastPitch?.pitchData?.breaks?.spinRate || '--'} <span className="text-xs font-normal text-slate-600">RPM</span>
                                     </span>
                                   </div>
+                                  {currentPitches.length > 1 && (
+                                    <>
+                                      <div className="w-px h-8 bg-slate-800" />
+                                      <div className="flex flex-col">
+                                        <span className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Tunneling</span>
+                                        <span className="text-lg font-mono font-black text-amber-400">
+                                          {(() => {
+                                            const prev = currentPitches[currentPitches.length - 2];
+                                            const curr = lastPitch;
+                                            if (!prev || !curr || curr.pitchData?.coordinates?.pX === undefined || prev.pitchData?.coordinates?.pX === undefined) return '--';
+                                            const dx = curr.pitchData.coordinates.pX - prev.pitchData.coordinates.pX;
+                                            const dz = curr.pitchData.coordinates.pZ - prev.pitchData.coordinates.pZ;
+                                            const dist = Math.sqrt(dx * dx + dz * dz) * 12; // in inches
+                                            return dist.toFixed(1);
+                                          })()}" <span className="text-xs font-normal text-slate-600">Delta</span>
+                                        </span>
+                                      </div>
+                                    </>
+                                  )}
                                 </div>
                                 <div className={cn(
                                   "px-4 py-2 rounded-xl font-black text-sm uppercase tracking-widest border shadow-lg",
@@ -1142,8 +1164,11 @@ export default function App() {
                               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Pitch Sequence</p>
                               <div className="flex flex-col gap-2">
                                 {play.pitches.map((pitch, idx) => (
-                                  <div 
+                                  <motion.div 
                                     key={pitch.pitch_id}
+                                    initial={{ x: -20, opacity: 0 }}
+                                    animate={{ x: 0, opacity: 1 }}
+                                    transition={{ delay: idx * 0.05 }}
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       setSelectedPitchId(pitch.pitch_id);
@@ -1179,10 +1204,20 @@ export default function App() {
                                             <span className="text-xs font-mono font-bold text-indigo-400">{pitch.velocity} <span className="text-[9px] font-normal text-slate-600">MPH</span></span>
                                           )}
                                           {pitch.spin_rate && (
-                                            <span className="text-xs font-mono text-slate-500">{pitch.spin_rate} <span className="text-[9px]">RPM</span></span>
+                                            <span className="text-xs font-mono text-slate-300">{pitch.spin_rate} <span className="text-[9px]">RPM</span></span>
+                                          )}
+                                          {idx > 0 && play.pitches[idx-1].px !== null && pitch.px !== null && (
+                                            <span className="text-xs font-mono text-amber-400 hidden lg:inline">
+                                              {(() => {
+                                                const prev = play.pitches[idx-1];
+                                                const dx = pitch.px! - prev.px!;
+                                                const dz = pitch.pz! - prev.pz!;
+                                                return (Math.sqrt(dx * dx + dz * dz) * 12).toFixed(1);
+                                              })()}" Tunnel
+                                            </span>
                                           )}
                                           {pitch.extension && (
-                                            <span className="text-xs font-mono text-slate-600 hidden sm:inline">{pitch.extension.toFixed(1)} <span className="text-[9px]">FT EXT</span></span>
+                                            <span className="text-xs font-mono text-slate-600 hidden xl:inline">{pitch.extension.toFixed(1)} <span className="text-[9px]">FT EXT</span></span>
                                           )}
                                         </div>
                                       </div>
@@ -1197,7 +1232,7 @@ export default function App() {
                                         selectedPitchId === pitch.pitch_id ? "text-indigo-400" : "text-slate-700 group-hover:text-slate-500"
                                       )} />
                                     </div>
-                                  </div>
+                                  </motion.div>
                                 ))}
                               </div>
                             </div>

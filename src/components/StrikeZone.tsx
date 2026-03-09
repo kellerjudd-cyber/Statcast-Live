@@ -84,22 +84,48 @@ const StrikeZone: React.FC<StrikeZoneProps> = ({ pitches, selectedPitchId }) => 
         .attr('stroke-dasharray', '2');
     });
 
-    // Draw Pitches
+    // Draw Tunneling Lines
     const filteredPitches = pitches.filter(p => p.px !== null && p.pz !== null);
+    
+    if (filteredPitches.length > 1) {
+      const lineGenerator = d3.line<Pitch>()
+        .x(d => xScale(d.px!))
+        .y(d => yScale(d.pz!));
+
+      svg.append('path')
+        .datum(filteredPitches)
+        .attr('fill', 'none')
+        .attr('stroke', '#475569')
+        .attr('stroke-width', 1)
+        .attr('stroke-dasharray', '4,4')
+        .attr('opacity', 0.3)
+        .attr('d', lineGenerator as any);
+    }
+
+    // Draw Pitches
+    const getPitchSymbol = (pitch: Pitch) => {
+      const type = (pitch.pitch_type || '').toLowerCase();
+      const isBreaking = type.includes('cu') || type.includes('kc') || type.includes('sl') || type.includes('st') || type.includes('sv') || type.includes('curve') || type.includes('slider');
+      const isOffspeed = type.includes('ch') || type.includes('fs') || type.includes('sc') || type.includes('change') || type.includes('splitter');
+      
+      if (isBreaking) return d3.symbolDiamond;
+      if (isOffspeed) return d3.symbolSquare;
+      return d3.symbolCircle;
+    };
+
     svg.selectAll('.pitch')
       .data(filteredPitches)
       .enter()
-      .append('circle')
+      .append('path')
       .attr('class', 'pitch')
-      .attr('cx', (d: any) => xScale(d.px!))
-      .attr('cy', (d: any) => yScale(d.pz!))
-      .attr('r', (d: any) => d.pitch_id === selectedPitchId ? 8 : 5)
+      .attr('transform', (d: any) => `translate(${xScale(d.px!)}, ${yScale(d.pz!)})`)
+      .attr('d', (d: any) => d3.symbol().type(getPitchSymbol(d)).size(d.pitch_id === selectedPitchId ? 200 : 80)())
       .attr('fill', (d: any) => {
         if (d.result.toLowerCase().includes('strike')) return '#ef4444';
         if (d.result.toLowerCase().includes('ball')) return '#3b82f6';
         return '#10b981';
       })
-      .attr('stroke', (d: any) => d.pitch_id === selectedPitchId ? '#000' : 'none')
+      .attr('stroke', (d: any) => d.pitch_id === selectedPitchId ? '#fff' : 'none')
       .attr('stroke-width', 2)
       .attr('opacity', (d: any) => selectedPitchId ? (d.pitch_id === selectedPitchId ? 1 : 0.3) : 0.8);
 
@@ -109,17 +135,41 @@ const StrikeZone: React.FC<StrikeZoneProps> = ({ pitches, selectedPitchId }) => 
     <div className="flex flex-col items-center bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-none">
       <h3 className="text-sm font-semibold text-slate-400 mb-2 uppercase tracking-wider">Strike Zone</h3>
       <svg ref={svgRef} width="300" height="400" className="overflow-visible" />
-      <div className="flex gap-4 mt-4 text-xs font-medium">
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded-full bg-red-500" /> <span className="text-slate-300">Strike</span>
+      
+      <div className="mt-6 w-full space-y-4">
+        {/* Result Legend */}
+        <div className="flex justify-center gap-6 text-[10px] font-bold uppercase tracking-widest">
+          <div className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 rounded-full bg-red-500" /> 
+            <span className="text-slate-400">Strike</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 rounded-full bg-blue-500" /> 
+            <span className="text-slate-400">Ball</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> 
+            <span className="text-slate-400">In Play</span>
+          </div>
         </div>
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded-full bg-blue-500" /> <span className="text-slate-300">Ball</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded-full bg-emerald-500" /> <span className="text-slate-300">In Play</span>
+
+        {/* Pitch Type Legend */}
+        <div className="flex justify-center gap-6 text-[10px] font-bold uppercase tracking-widest border-t border-slate-800 pt-4">
+          <div className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 rounded-full bg-slate-600" /> 
+            <span className="text-slate-400">Fastball</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 bg-slate-600 rotate-45" /> 
+            <span className="text-slate-400">Breaking</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 bg-slate-600" /> 
+            <span className="text-slate-400">Offspeed</span>
+          </div>
         </div>
       </div>
+
       {selectedPitchId && (
         <div className="mt-4 w-full bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
           <div className="grid grid-cols-2 gap-4">
@@ -133,6 +183,21 @@ const StrikeZone: React.FC<StrikeZoneProps> = ({ pitches, selectedPitchId }) => 
               <p className="text-[9px] text-slate-500 uppercase font-bold">Spin Rate</p>
               <p className="text-xs font-mono font-bold text-slate-100">
                 {pitches.find(p => p.pitch_id === selectedPitchId)?.spin_rate || '--'} <span className="text-[9px] text-slate-500 font-normal">RPM</span>
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="text-[9px] text-slate-500 uppercase font-bold">Tunneling</p>
+              <p className="text-xs font-mono font-bold text-amber-400">
+                {(() => {
+                  const idx = pitches.findIndex(p => p.pitch_id === selectedPitchId);
+                  if (idx <= 0) return '--';
+                  const curr = pitches[idx];
+                  const prev = pitches[idx - 1];
+                  if (!curr || !prev || curr.px === null || prev.px === null) return '--';
+                  const dx = curr.px - prev.px;
+                  const dz = curr.pz - prev.pz;
+                  return (Math.sqrt(dx * dx + dz * dz) * 12).toFixed(1) + '"';
+                })()}
               </p>
             </div>
             <div className="text-center">
